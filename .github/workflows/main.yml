@@ -1,0 +1,137 @@
+name: Import Lavalink Handbook ZIP
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: import-handbook-zip
+  cancel-in-progress: false
+
+jobs:
+  import:
+    name: Extract Handbook
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract ZIP
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import shutil
+          import stat
+          import zipfile
+          from pathlib import Path, PurePosixPath
+
+          root = Path.cwd()
+          archives = sorted(
+              p for p in root.iterdir()
+              if p.is_file() and p.suffix.lower() == ".zip"
+          )
+
+          if len(archives) != 1:
+              raise SystemExit(
+                  f"Expected exactly one ZIP in repository root, found {len(archives)}."
+              )
+
+          archive = archives[0]
+          extracted_files = 0
+
+          with zipfile.ZipFile(archive, "r") as zf:
+              files = []
+
+              for info in zf.infolist():
+                  if info.is_dir():
+                      continue
+
+                  name = info.filename.replace("\\", "/")
+                  path = PurePosixPath(name)
+
+                  if path.is_absolute() or ".." in path.parts or ":" in path.parts[0]:
+                      raise SystemExit(f"Unsafe ZIP path: {name}")
+
+                  if "__MACOSX" in path.parts or ".DS_Store" in path.parts:
+                      continue
+
+                  mode = info.external_attr >> 16
+
+                  if stat.S_ISLNK(mode):
+                      raise SystemExit(f"Symlinks are not allowed: {name}")
+
+                  files.append((info, path))
+
+              if not files:
+                  raise SystemExit("ZIP contains no extractable files.")
+
+              first_parts = {path.parts[0] for _, path in files}
+              flatten = (
+                  len(first_parts) == 1
+                  and all(len(path.parts) > 1 for _, path in files)
+              )
+
+              for info, path in files:
+                  parts = path.parts[1:] if flatten else path.parts
+
+                  if not parts:
+                      continue
+
+                  if any(
+                      part in {
+                          ".git",
+                          "node_modules",
+                          ".next",
+                          "venv",
+                          ".venv",
+                          "__pycache__",
+                      }
+                      for part in parts
+                  ):
+                      continue
+
+                  destination = root.joinpath(*parts)
+
+                  if destination.is_symlink():
+                      raise SystemExit(
+                          f"Refusing to overwrite symlink: {destination}"
+                      )
+
+                  destination.parent.mkdir(parents=True, exist_ok=True)
+
+                  with zf.open(info) as source:
+                      with destination.open("wb") as target:
+                          shutil.copyfileobj(source, target)
+
+                  extracted_files += 1
+                  print(f"Extracted: {destination.relative_to(root)}")
+
+          if extracted_files == 0:
+              raise SystemExit("No project files were extracted.")
+
+          archive.unlink()
+
+          print(f"Successfully extracted {extracted_files} files.")
+          print(f"Deleted ZIP: {archive.name}")
+          PY
+
+      - name: Commit and Push
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+
+          git commit -m "docs: import ZorveX Lavalink handbook"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
