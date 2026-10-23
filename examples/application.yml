@@ -1,0 +1,114 @@
+lavalink:
+  plugins:
+    - dependency: "dev.lavalink.youtube:youtube-plugin:REPLACE_WITH_TESTED_VERSION"
+      repository: "https://maven.lavalink.dev/releases"
+      snapshot: false
+    - dependency: "com.github.ItzRandom23:PulseLink:REPLACE_WITH_TESTED_VERSION"
+      repository: "https://jitpack.io"
+      snapshot: false
+    - dependency: "com.github.topi314.lavasearch:lavasearch-plugin:REPLACE_WITH_TESTED_VERSION"
+      repository: "https://maven.lavalink.dev/releases"
+      snapshot: false
+
+  server:
+    password: "${LAVALINK_SERVER_PASSWORD}"
+    bufferDurationMs: 400
+    frameBufferDurationMs: 5000
+    gc-warnings: true
+    opusEncodingQuality: 5
+    playerUpdateInterval: 5
+    resamplingQuality: HIGH
+    trackStuckThresholdMs: 10000
+    useSeekGhosting: true
+    youtubePlaylistLoadLimit: 6
+    youtubeSearchEnabled: true
+
+    sources:
+      bandcamp: true
+      http: true
+      local: false
+      nico: true
+      soundcloud: true
+      twitch: true
+      vimeo: true
+      youtube: false
+
+    timeouts:
+      connectTimeoutMs: 60000
+      connectionRequestTimeoutMs: 60000
+      socketTimeoutMs: 60000
+
+logging:
+  level:
+    root: INFO
+    lavalink: INFO
+    dev.lavalink.youtube.http.YoutubeOauth2Handler: INFO
+  request:
+    enabled: false
+    includeClientInfo: false
+    includeHeaders: false
+    includePayload: false
+    includeQueryString: false
+
+metrics:
+  prometheus:
+    enabled: false
+    endpoint: /metrics
+
+plugins:
+  lavasearch:
+    sources:
+      - spotify
+      - youtube
+
+  pulselink:
+    providers:
+      - "ytsearch:%ISRC%"
+      - "ytsearch:%QUERY%"
+    sources:
+      spotify: true
+      applemusic: true
+      tidal: true
+      jiosaavn: true
+      audiomack: true
+      gaana: true
+      soundcloud: true
+      pandora: true
+      amazonmusic: false
+      deezer: false
+      yandexmusic: false
+      vkmusic: false
+      qobuz: false
+      ytdlp: false
+      flowerytts: false
+      youtube: false
+    spotify:
+      countryCode: "US"
+      playlistLoadLimit: 6
+      albumLoadLimit: 6
+      resolveArtistsInSearch: true
+      localFiles: false
+
+  youtube:
+    enabled: true
+    allowDirectPlaylistIds: true
+    allowDirectVideoIds: true
+    allowSearch: true
+    clients:
+      - WEB
+      - TV
+      - ANDROID_VR
+    oauth:
+      enabled: true
+      refreshToken: "${YOUTUBE_OAUTH_REFRESH_TOKEN:}"
+      skipInitialization: false
+
+sentry:
+  dsn: ""
+  environment: ""
+
+server:
+  address: 127.0.0.1
+  port: 2333
+  http2:
+    enabled: false
